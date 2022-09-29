@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: core
+  jpa:
+    hibernate:
+      properties:
+        hibernate:
+          jdbc:
+            time_zone: UTC
+      use-new-id-generator-mappings: false
+  datasource:
+    url: jdbc:mysql://localhost:3306/core?useUnicode=true&characterEncoding=utf8&useSSL=false&useLegacyDatetimeCode=false&serverTimezone=UTC&createDatabaseIfNotExist=true
+    user: root
+    username: root
+    password: admin
+  jackson:
+    deserialization:
+      ACCEPT_SINGLE_VALUE_AS_ARRAY: true
+      FAIL_ON_UNKNOWN_PROPERTIES: false
+    serialization:
+      FAIL_ON_EMPTY_BEANS: false
+  data:
+    redis:
+      repositories:
+        enabled: false
+  redis:
+    host: localhost
+    port: 6379
+
+logging:
+  file: /logs/application.log
+  level:
+    root: WARN
+    org.springframework: WARN
+    com.homer: INFO
+    in: WARN
+    out: WARN
+
+app:
+  kafkaUrl: localhost:9092
+  clusterId: ${spring.application.name}
+  consumerCount: 3
+  defaultPage: 0
+  defaultPageSize: 20
