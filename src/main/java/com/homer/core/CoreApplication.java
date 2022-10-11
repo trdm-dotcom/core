@@ -1,5 +1,6 @@
 package com.homer.core;
 
+import com.homer.core.configurations.AppConf;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

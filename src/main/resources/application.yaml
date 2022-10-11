@@ -39,6 +39,7 @@ logging:
 app:
   kafkaUrl: localhost:9092
   clusterId: ${spring.application.name}
+  maxThread: 8
   consumerCount: 3
   defaultPage: 0
   defaultPageSize: 20

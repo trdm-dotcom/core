@@ -14,7 +14,10 @@ public class AppConf {
     private String kafkaUrl;
     private String domain;
     private Integer maxThread;
-    private long eventNotificationsTime;
     private Integer defaultPageSize;
     private Integer defaultPage;
+
+    public String getKafkaBootstraps() {
+        return this.kafkaUrl.replace(";", ",");
+    }
 }
