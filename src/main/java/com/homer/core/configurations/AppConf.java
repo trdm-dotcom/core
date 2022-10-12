@@ -16,6 +16,14 @@ public class AppConf {
     private Integer maxThread;
     private Integer defaultPageSize;
     private Integer defaultPage;
+    private Topic topics;
+
+    @Data
+    private static class Topic {
+        private String userInfo;
+        private String notification;
+        private String pushNotification;
+    }
 
     public String getKafkaBootstraps() {
         return this.kafkaUrl.replace(";", ",");

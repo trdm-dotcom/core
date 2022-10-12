@@ -43,3 +43,8 @@ app:
   consumerCount: 3
   defaultPage: 0
   defaultPageSize: 20
+  topics:
+    userInfo: user-info
+    notification: notification
+    pushNotification: push-notification
+
