@@ -4,4 +4,5 @@ import lombok.Data;
 
 @Data
 public class DistrictDTO extends AddressDTO{
+    private Long cityCode;
 }

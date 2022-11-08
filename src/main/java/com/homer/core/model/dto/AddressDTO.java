@@ -9,5 +9,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AddressDTO {
     private String label;
-    private String value;
+    private Long value;
 }

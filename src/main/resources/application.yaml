@@ -2,11 +2,12 @@ spring:
   application:
     name: core
   jpa:
+    open-in-view: false
     hibernate:
       properties:
+        enable_lazy_load_no_trans: true
         hibernate:
-          jdbc:
-            time_zone: UTC
+          jdbc.time_zone: UTC
       use-new-id-generator-mappings: false
   datasource:
     url: jdbc:mysql://localhost:3306/core?useUnicode=true&characterEncoding=utf8&useSSL=false&useLegacyDatetimeCode=false&serverTimezone=UTC&createDatabaseIfNotExist=true
@@ -14,11 +15,8 @@ spring:
     username: root
     password: admin
   jackson:
-    deserialization:
-      ACCEPT_SINGLE_VALUE_AS_ARRAY: true
-      FAIL_ON_UNKNOWN_PROPERTIES: false
-    serialization:
-      FAIL_ON_EMPTY_BEANS: false
+    default-property-inclusion: non_null
+
   data:
     redis:
       repositories:
@@ -39,7 +37,7 @@ logging:
 app:
   kafkaUrl: localhost:9092
   clusterId: ${spring.application.name}
-  maxThread: 8
+  maxThread: 4
   consumerCount: 3
   defaultPage: 0
   defaultPageSize: 20
@@ -47,4 +45,5 @@ app:
     userInfo: user-info
     notification: notification
     pushNotification: push-notification
+    syncRedisMysql: sync-redis-mysql
 
