@@ -41,6 +41,7 @@ app:
   consumerCount: 3
   defaultPage: 0
   defaultPageSize: 20
+  timeModify: 3600
   topics:
     userInfo: user-info
     notification: notification

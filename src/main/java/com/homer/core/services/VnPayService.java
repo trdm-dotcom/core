@@ -11,6 +11,7 @@ import com.homer.core.utils.DateFormatUtil;
 import com.homer.core.utils.RandomUtil;
 import com.homer.core.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,6 +25,7 @@ import static com.homer.core.constants.VnPayConstants.*;
 public class VnPayService {
     private final AppConf appConf;
 
+    @Autowired
     public VnPayService(
             AppConf appConf
     ) {

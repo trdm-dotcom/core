@@ -8,9 +8,6 @@ import java.time.LocalDateTime;
 public class BookingDTO {
     private LocalDateTime fromTime;
     private LocalDateTime toTime;
-    private String phoneNumberA;
-    private String nameA;
-    private String nameB;
-    private String phoneNumberB;
-    private Boolean side;
+    private String phoneNumber;
+    private String name;
 }

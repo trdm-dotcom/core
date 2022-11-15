@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "t_features")
+@Table(name = "t_booking")
 public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,6 +19,10 @@ public class Booking {
     private Long id;
     @JsonProperty
     private String userId;
+    @JsonProperty
+    private String userIdSideB;
+    @JsonProperty
+    private String reason;
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnore
     private Post post;

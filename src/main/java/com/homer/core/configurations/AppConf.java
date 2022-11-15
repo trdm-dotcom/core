@@ -15,6 +15,7 @@ public class AppConf {
     private Integer defaultPage;
     private Topic topics;
     private VnPayInfo vnPayInfo;
+    private Integer timeModify;
 
     @Data
     public static class Topic {

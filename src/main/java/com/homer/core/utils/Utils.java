@@ -6,19 +6,16 @@ import com.homer.core.common.model.Message;
 import com.homer.core.common.model.Response;
 import com.homer.core.common.redis.RedisDao;
 import com.homer.core.configurations.AppConf;
+import com.homer.core.constants.Constants;
 import com.homer.core.model.response.UserInfo;
 import com.homer.core.services.KafkaProducerService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 @Component
 @Slf4j
@@ -58,5 +55,9 @@ public class Utils {
         }catch (Exception e){
             throw new GeneralException();
         }
+    }
+
+    public static UserInfo getUserInfo(String userId){
+        return redisDao.hGet(Constants.REDIS_KEY_USERINFO, userId, UserInfo.class);
     }
 }

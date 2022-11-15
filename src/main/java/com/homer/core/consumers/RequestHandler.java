@@ -12,10 +12,7 @@ import com.homer.core.common.kafka.producers.KafkaRequestHandler;
 import com.homer.core.common.model.Message;
 import com.homer.core.configurations.AppConf;
 import com.homer.core.model.request.*;
-import com.homer.core.services.AddressService;
-import com.homer.core.services.PostService;
-import com.homer.core.services.VnPayService;
-import com.homer.core.services.WatchlistService;
+import com.homer.core.services.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,6 +26,8 @@ public class RequestHandler extends KafkaRequestHandler {
     private final PostService postService;
     private final VnPayService vnPayService;
     private final WatchlistService watchlistService;
+    private final BookingService bookingService;
+
     @Autowired
     public RequestHandler(
             ObjectMapper objectMapper,
@@ -36,7 +35,8 @@ public class RequestHandler extends KafkaRequestHandler {
             AddressService addressService,
             PostService postService,
             VnPayService vnPayService,
-            WatchlistService watchlistService
+            WatchlistService watchlistService,
+            BookingService bookingService
     ) {
         super(objectMapper, appConf.getKafkaBootstraps(), appConf.getClusterId(), appConf.getMaxThread());
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
@@ -48,6 +48,7 @@ public class RequestHandler extends KafkaRequestHandler {
         this.postService = postService;
         this.vnPayService = vnPayService;
         this.watchlistService = watchlistService;
+        this.bookingService = bookingService;
     }
 
     @Override
@@ -102,13 +103,33 @@ public class RequestHandler extends KafkaRequestHandler {
                     AddWatchListRequest addWatchListRequest = Message.getData(this.objectMapper, message, AddWatchListRequest.class);
                     return this.watchlistService.addWatchList(addWatchListRequest, message.getTransactionId());
 
-                case "delete:/api/v1/favorite/watchlist":
+                case "delete:/api/v1/core/favorite/watchlist":
                     DeleteWatchListRequest deleteWatchListRequest = Message.getData(this.objectMapper, message, DeleteWatchListRequest.class);
                     return this.watchlistService.deleteWatchList(deleteWatchListRequest, message.getTransactionId());
 
-                case "get:/api/v1/favorite/watchlist":
+                case "get:/api/v1/core/favorite/watchlist":
                     GetWatchlistRequest getWatchlistRequest = Message.getData(this.objectMapper, message, GetWatchlistRequest.class);
                     return this.watchlistService.getWatchList(getWatchlistRequest, message.getTransactionId());
+
+                case "post:/api/v1/core/booking":
+                    CreateBookingRequest createBookingRequest = Message.getData(this.objectMapper, message, CreateBookingRequest.class);
+                    return this.bookingService.createBooking(createBookingRequest, message.getTransactionId());
+
+                case "get:/api/v1/core/booking":
+                    GetBookingRequest getBookingRequest = Message.getData(this.objectMapper, message, GetBookingRequest.class);
+                    return this.bookingService.getBooking(getBookingRequest, message.getTransactionId());
+
+                case "put:/api/v1/core/booking":
+                    UpdateBookingRequest modifyBookingRequest = Message.getData(this.objectMapper, message, UpdateBookingRequest.class);
+                    return this.bookingService.modifyBooking(modifyBookingRequest, message.getTransactionId());
+
+                case "delete:/api/v1/core/booking":
+                    UpdateBookingRequest deleteBookingRequest = Message.getData(this.objectMapper, message, UpdateBookingRequest.class);
+                    return this.bookingService.deleteBooking(deleteBookingRequest, message.getTransactionId());
+
+                case "put:/api/v1/core/booking/reject":
+                    UpdateBookingRequest rejectBookingRequest = Message.getData(this.objectMapper, message, UpdateBookingRequest.class);
+                    return this.bookingService.rejectBooking(rejectBookingRequest, message.getTransactionId());
             }
             return true;
         } catch (IllegalArgumentException e) {

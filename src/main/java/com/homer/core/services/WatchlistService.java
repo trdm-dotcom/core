@@ -18,6 +18,7 @@ import com.homer.core.model.request.GetWatchlistRequest;
 import com.homer.core.repository.PostRepository;
 import com.homer.core.repository.WatchlistRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
@@ -42,6 +43,7 @@ public class WatchlistService {
 
     public final PostService postService;
 
+    @Autowired
     public WatchlistService(
             WatchlistRepository watchlistRepository,
             AppConf appConf,

@@ -10,4 +10,6 @@ public class UserInfo {
     private Boolean isVerified;
     private UserStatus status;
     private String deviceToken;
+    private String username;
+    private String fullname;
 }

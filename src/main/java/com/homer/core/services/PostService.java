@@ -12,6 +12,7 @@ import com.homer.core.model.SyncType;
 import com.homer.core.model.db.*;
 import com.homer.core.model.dto.PostDTO;
 import com.homer.core.model.request.FilterPostRequest;
+import com.homer.core.model.request.InternalRejectBookingRequest;
 import com.homer.core.model.request.PostDetailRequest;
 import com.homer.core.model.request.PostRequest;
 import com.homer.core.model.response.UserInfo;
@@ -19,6 +20,7 @@ import com.homer.core.repository.*;
 import com.homer.core.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -26,6 +28,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -41,8 +45,10 @@ public class PostService {
     private final CommuneRepository communeRepository;
     private final FeatureRepository featureRepository;
     private final RedisDao redisDao;
+    private final BookingService bookingService;
+    private final BookingRepository bookingRepository;
 
-
+    @Autowired
     public PostService(
             AppConf appConf,
             PostRepository postRepository,
@@ -50,7 +56,9 @@ public class PostService {
             CityRepository cityRepository,
             DistrictRepository districtRepository,
             CommuneRepository communeRepository,
-            FeatureRepository featureRepository, RedisDao redisDao
+            FeatureRepository featureRepository, RedisDao redisDao,
+            BookingService bookingService,
+            BookingRepository bookingRepository
     ) {
         this.appConf = appConf;
         this.postRepository = postRepository;
@@ -60,6 +68,8 @@ public class PostService {
         this.communeRepository = communeRepository;
         this.featureRepository = featureRepository;
         this.redisDao = redisDao;
+        this.bookingService = bookingService;
+        this.bookingRepository = bookingRepository;
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
@@ -151,9 +161,10 @@ public class PostService {
             commune = this.communeRepository.findById(request.getCommune()).orElse(null);
         }
         Post post = this.postRepository.findById(request.getId()).orElseThrow(() -> new GeneralException("OBJECT_NOT_FOUND"));
-        if (!Objects.equals(post.getUserId(), request.getHeaders().getToken().getUserData().getUserId())) {
+        if (!post.getUserId().equals(request.getHeaders().getToken().getUserData().getUserId())) {
             throw new GeneralException("OBJECT_NOT_FOUND");
         }
+
         List<Feature> features = this.featureRepository.findAllById(request.getFeatures());
         post.setName(request.getName());
         post.setDescription(request.getDescription());
@@ -175,12 +186,18 @@ public class PostService {
             return image;
         }).collect(Collectors.toSet());
         post.setImages(images);
-        PostDTO result = new PostDTO(this.postRepository.save(post));
+        PostDTO result = new PostDTO(post);
         if (request.getIsPublic() == null || request.getIsPublic()) {
             this.savePostToRedis(result, SyncType.UPDATE);
         } else {
+            List<Booking> bookings = this.bookingRepository.findByPostIdAndFromTimeBetween(post.getId(), LocalDateTime.now(), LocalDateTime.now().plus(appConf.getTimeModify(), ChronoUnit.SECONDS));
+            if (CollectionUtils.isNotEmpty(bookings)) {
+                throw new GeneralException(Constants.MODIFY_FAILED);
+            }
             this.savePostToRedis(result, SyncType.DELETE);
+            this.doInternalRejectBooking(post.getId(), msgId);
         }
+        this.postRepository.save(post);
         return new HashMap<>();
     }
 
@@ -248,13 +265,16 @@ public class PostService {
             throw new InvalidValueException("id");
         }
         Post post = this.postRepository.findById(request.getId()).orElseThrow(() -> new GeneralException("OBJECT_NOT_FOUND"));
-        if (!Objects.equals(post.getUserId(), request.getHeaders().getToken().getUserData().getUserId())) {
-            throw new GeneralException("OBJECT_NOT_FOUND");
+        if (!post.getUserId().equals(request.getHeaders().getToken().getUserData().getUserId())) {
+            throw new GeneralException(Constants.DELETE_FAILED);
+        }
+        List<Booking> bookings = this.bookingRepository.findByPostIdAndFromTimeBetween(post.getId(), LocalDateTime.now(), LocalDateTime.now().plus(appConf.getTimeModify(), ChronoUnit.SECONDS));
+        if (CollectionUtils.isNotEmpty(bookings)) {
+            throw new GeneralException(Constants.DELETE_FAILED);
         }
         this.postRepository.delete(post);
-        PostDTO postDTO = new PostDTO();
-        postDTO.setId(post.getId());
-        this.savePostToRedis(postDTO, SyncType.DELETE);
+        this.savePostToRedis(new PostDTO(post), SyncType.DELETE);
+        this.doInternalRejectBooking(post.getId(), msgId);
         return new HashMap<>();
     }
 
@@ -274,7 +294,7 @@ public class PostService {
 
     private List<Predicate<PostDTO>> buidlPredicate(String userId, FilterPostRequest request) {
         List<Predicate<PostDTO>> allPredicates = new ArrayList<Predicate<PostDTO>>();
-        if (!CollectionUtils.isEmpty(request.getIds())){
+        if (!CollectionUtils.isEmpty(request.getIds())) {
             allPredicates.add(i -> request.getIds().contains(i.getId()));
         }
         if (userId != null) {
@@ -308,5 +328,11 @@ public class PostService {
             allPredicates.add(i -> i.getFeatures().containsAll(this.featureRepository.findAllById(request.getFeatures())));
         }
         return allPredicates;
+    }
+
+    private void doInternalRejectBooking(Long id, String msgId) throws IOException {
+        InternalRejectBookingRequest request = new InternalRejectBookingRequest();
+        request.setId(id);
+        this.bookingService.internalRejectBooking(request, msgId);
     }
 }
