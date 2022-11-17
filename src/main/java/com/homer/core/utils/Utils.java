@@ -7,12 +7,15 @@ import com.homer.core.common.model.Response;
 import com.homer.core.common.redis.RedisDao;
 import com.homer.core.configurations.AppConf;
 import com.homer.core.constants.Constants;
+import com.homer.core.model.FirebaseType;
+import com.homer.core.model.request.PushNotificationRequest;
 import com.homer.core.model.response.UserInfo;
 import com.homer.core.services.KafkaProducerService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -59,5 +62,22 @@ public class Utils {
 
     public static UserInfo getUserInfo(String userId){
         return redisDao.hGet(Constants.REDIS_KEY_USERINFO, userId, UserInfo.class);
+    }
+
+    public static void sendNotification(String userId, String titile, String content, String template, FirebaseType type, String condition) throws IOException {
+        UserInfo userInfo = Utils.getUserInfo(userId);
+        PushNotificationRequest request = new PushNotificationRequest();
+        request.setUserId(userId);
+        request.setTitle(titile);
+        request.setContent(content);
+        request.setTemplate(template);
+        request.setIsSave(true);
+        request.setType(type);
+        if (type.equals(FirebaseType.TOKEN)) {
+            request.setToken(userInfo.getDeviceToken());
+        } else {
+            request.setCondition(condition);
+        }
+        kafkaProducerService.sendMessage(appConf.getTopics().getPushNotification(), "", request);
     }
 }

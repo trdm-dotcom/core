@@ -42,9 +42,31 @@ app:
   defaultPage: 0
   defaultPageSize: 20
   timeModify: 3600
+  descriptionMaxLength: 2500
   topics:
     userInfo: user-info
     notification: notification
     pushNotification: push-notification
     syncRedisMysql: sync-redis-mysql
+  vnPay:
+    vnpVersion: 2.1.0
+    vnpCommand: pay
+    vnpCurrCode: VND
+    vnpLocale: vn
+    datePattern: yyyyMMddHHmmss
+    vnPayAmountRate: 100
+    payUrl: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+    expireTime: 3600
+    orderType: ""
+    paymentInfo:
+      returnUrl: ""
+      secureHash: ""
+      tmnCode: ""
+    depositInfo:
+      returnUrl: ""
+      secureHash: ""
+      tmnCode: ""
+
+
+
 

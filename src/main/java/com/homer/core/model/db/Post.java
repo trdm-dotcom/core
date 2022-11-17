@@ -39,6 +39,8 @@ public class Post implements Serializable {
     @JsonProperty
     private Double price;
     @JsonProperty
+    private Integer minMonth;
+    @JsonProperty
     private String address;
     @JsonProperty
     private String description;
@@ -67,6 +69,9 @@ public class Post implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonIgnore
     private District district;
+    @OneToMany(mappedBy = "post")
+    @JsonIgnore
+    private Collection<Invoice> invoices;
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp

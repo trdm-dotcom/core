@@ -26,6 +26,7 @@ public class PostRequest extends DataRequest {
     private String hash;
     private List<String> images;
     private List<Long> features;
+    private Integer minMonth;
 
     public void validate(){
         new CombineValidator()
@@ -34,6 +35,7 @@ public class PostRequest extends DataRequest {
                 .add(new StringValidator("hash", this.hash).empty())
                 .add(new EnumValidator("category", this.category.name(), Category.class))
                 .add(new NumberValidator("price", this.price).min(0.0))
-                .add(new NumberValidator("size", this.size).min(1.0)).check();
+                .add(new NumberValidator("size", this.size).min(1.0))
+                .add(new NumberValidator("minMonth", this.minMonth).min(1.0)).check();
     }
 }

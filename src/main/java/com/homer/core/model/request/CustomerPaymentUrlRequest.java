@@ -9,14 +9,12 @@ import lombok.Data;
 @Data
 public class CustomerPaymentUrlRequest extends DataRequest {
     private String orderInfo;
-    private String bankCode;
     private String requestCode;
     private String hash;
 
     public void validate(){
         new CombineValidator()
                 .add(new StringValidator("orderInfo", InputValidation.removeAccent(this.orderInfo)).empty())
-                .add(new StringValidator("bankCode", this.bankCode).empty())
                 .add(new StringValidator("hash", this.hash).empty())
                 .add(new StringValidator("requestCode", this.requestCode).empty()).check();
     }

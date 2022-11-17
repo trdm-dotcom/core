@@ -27,6 +27,7 @@ public class RequestHandler extends KafkaRequestHandler {
     private final VnPayService vnPayService;
     private final WatchlistService watchlistService;
     private final BookingService bookingService;
+    private final InvoiceService invoiceService;
 
     @Autowired
     public RequestHandler(
@@ -36,7 +37,8 @@ public class RequestHandler extends KafkaRequestHandler {
             PostService postService,
             VnPayService vnPayService,
             WatchlistService watchlistService,
-            BookingService bookingService
+            BookingService bookingService,
+            InvoiceService invoiceService
     ) {
         super(objectMapper, appConf.getKafkaBootstraps(), appConf.getClusterId(), appConf.getMaxThread());
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
@@ -49,6 +51,7 @@ public class RequestHandler extends KafkaRequestHandler {
         this.vnPayService = vnPayService;
         this.watchlistService = watchlistService;
         this.bookingService = bookingService;
+        this.invoiceService = invoiceService;
     }
 
     @Override
@@ -91,14 +94,6 @@ public class RequestHandler extends KafkaRequestHandler {
                     PostDetailRequest postDetailRequest = Message.getData(this.objectMapper, message, PostDetailRequest.class);
                     return this.postService.getPostDetail(postDetailRequest, message.getTransactionId());
 
-                case "post:/api/v1/core/customer/vnpay/payment/url":
-                    CustomerPaymentUrlRequest customerPaymentUrlRequest = Message.getData(this.objectMapper, message, CustomerPaymentUrlRequest.class);
-                    return this.vnPayService.createCustomerPaymentUrl(customerPaymentUrlRequest, message.getTransactionId());
-
-                case "post:/api/v1/core/repairer/vnpay/deposit/url":
-                    RepairerDepositUrlRequest repairerDepositUrlRequest = Message.getData(this.objectMapper, message, RepairerDepositUrlRequest.class);
-                    return this.vnPayService.createRepairerDepositUrl(repairerDepositUrlRequest, message.getTransactionId());
-
                 case "put:/api/v1/core/favorite/watchlist":
                     AddWatchListRequest addWatchListRequest = Message.getData(this.objectMapper, message, AddWatchListRequest.class);
                     return this.watchlistService.addWatchList(addWatchListRequest, message.getTransactionId());
@@ -130,6 +125,22 @@ public class RequestHandler extends KafkaRequestHandler {
                 case "put:/api/v1/core/booking/reject":
                     UpdateBookingRequest rejectBookingRequest = Message.getData(this.objectMapper, message, UpdateBookingRequest.class);
                     return this.bookingService.rejectBooking(rejectBookingRequest, message.getTransactionId());
+
+                case "post:/api/v1/core/invoice":
+                    RequestingRepairRequest requestingRepairRequest = Message.getData(this.objectMapper, message, RequestingRepairRequest.class);
+                    this.invoiceService.createNewInvoice(requestingRepairRequest, message.getTransactionId());
+
+                case "post:/api/v1/core/vnpay/payment/url":
+                    CustomerPaymentUrlRequest customerPaymentUrlRequest = Message.getData(this.objectMapper, message, CustomerPaymentUrlRequest.class);
+                    return this.vnPayService.createCustomerPaymentUrl(customerPaymentUrlRequest, message.getTransactionId());
+
+                case "get:/api/v1/core/vnpay/payment/ipn":
+                    VnPayRequest vnPayCustomerPaymentRequest = Message.getData(this.objectMapper, message, VnPayRequest.class);
+                    return this.vnPayService.responseCustomerPayment(vnPayCustomerPaymentRequest, message.getTransactionId());
+
+                case "get:/api/v1/core/vnpay/deposit/ipn":
+                    VnPayRequest vnPayRepairerDepositRequest = Message.getData(this.objectMapper, message, VnPayRequest.class);
+                    return this.vnPayService.responseRepairerDeposit(vnPayRepairerDepositRequest, message.getTransactionId());
             }
             return true;
         } catch (IllegalArgumentException e) {

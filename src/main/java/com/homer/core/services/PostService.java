@@ -116,6 +116,7 @@ public class PostService {
         post.setDistrict(district);
         post.setCommune(commune);
         post.setFeatures(features);
+        post.setMinMonth(request.getMinMonth());
         Collection<Image> images = request.getImages().stream().map(i -> {
             Image image = new Image();
             image.setUrl(i);
@@ -178,6 +179,7 @@ public class PostService {
         post.setDistrict(district);
         post.setCommune(commune);
         post.setFeatures(features);
+        post.setMinMonth(request.getMinMonth());
         Collection<Image> images = request.getImages().stream().map(i -> {
             Image image = new Image();
             image.setUrl(i);

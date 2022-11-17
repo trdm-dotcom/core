@@ -1,5 +1,9 @@
 package com.homer.core.model.db;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.homer.core.model.TransactionHistoryStatus;
+import com.homer.core.model.TransactionType;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -13,16 +17,37 @@ import java.time.LocalDateTime;
 public class TransactionHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonProperty
     private Long id;
+    @JsonProperty
     private String userId;
+    @JsonProperty
+    private String bankCode;
+    @JsonProperty
+    private String bankTranNo;
+    @JsonProperty
+    private String cardType;
+    @JsonProperty
+    private String responseCode;
+    @JsonProperty
+    private String transactionNo;
+    @JsonProperty
+    private String transactionStatus;
+    @JsonProperty
     private String transactionCode;
+    @JsonProperty
     private String requestCode;
+    @JsonProperty
     private Long amount;
-    private String type;
-    private Long transactionId;
-    private String status;
+    @JsonProperty
+    private TransactionType type;
+    @ManyToOne()
+    @JsonIgnore
+    private Transaction transaction;
+    @JsonProperty
+    private TransactionHistoryStatus status;
+    @JsonProperty
     private String failReason;
-    private Long withdrawRequestId;
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp

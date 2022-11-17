@@ -14,8 +14,9 @@ public class AppConf {
     private Integer defaultPageSize;
     private Integer defaultPage;
     private Topic topics;
-    private VnPayInfo vnPayInfo;
+    private vnPay vnPay;
     private Integer timeModify;
+    private Integer descriptionMaxLength;
 
     @Data
     public static class Topic {
@@ -26,14 +27,16 @@ public class AppConf {
     }
 
     @Data
-    public static class VnPayInfo {
-        private String version;
-        private String command;
-        private String locate;
-        private Integer vnPayAmountRate;
+    public static class vnPay {
+        private String vnpVersion;
+        private String vnpCommand;
+        private String vnpLocale;
         private String datePattern;
-        private String currCode;
+        private String vnpCurrCode;
+        private Integer vnPayAmountRate;
         private String payUrl;
+        private Integer expireTime;
+        private String orderType;
         private PaymentInfo paymentInfo;
         private DepositInfo depositInfo;
     }

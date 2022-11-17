@@ -25,6 +25,7 @@ public class PostDTO {
     private Collection<Feature> features;
     private String description;
     private Category category;
+    private Integer minMonth;
 
     public PostDTO(Post post) {
         this.id = post.getId();
@@ -39,5 +40,6 @@ public class PostDTO {
         this.features = post.getFeatures();
         this.userId = post.getUserId();
         this.category = post.getCategory();
+        this.minMonth = post.getMinMonth();
     }
 }

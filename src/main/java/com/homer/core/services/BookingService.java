@@ -37,19 +37,15 @@ public class BookingService {
 
     private final AppConf appConf;
 
-    private final KafkaProducerService kafkaProducerService;
-
     @Autowired
     public BookingService(
             BookingRepository bookingRepository,
             PostRepository postRepository,
-            AppConf appConf,
-            KafkaProducerService kafkaProducerService
+            AppConf appConf
     ) {
         this.bookingRepository = bookingRepository;
         this.postRepository = postRepository;
         this.appConf = appConf;
-        this.kafkaProducerService = kafkaProducerService;
     }
 
     public Object createBooking(CreateBookingRequest request, String msgId) throws IOException {
@@ -77,8 +73,8 @@ public class BookingService {
             throw new GeneralException(Constants.FROM_TIME_MUST_BE_BEFORE_OR_EQUAL_TO_TO_TIME);
         }
         Post post = postRepository.findById(request.getPostId()).orElseThrow(() -> new GeneralException("OBJECT_NOT_FOUND"));
-        if (!post.getIsPublic()) {
-            throw new GeneralException("OBJECT_NOT_FOUND");
+        if(!post.getIsPublic()){
+            throw new GeneralException(Constants.CREATE_FAILED);
         }
         if (post.getUserId().equals(request.getHeaders().getToken().getUserData().getUserId())) {
             throw new GeneralException(Constants.CREATE_FAILED);
@@ -91,7 +87,7 @@ public class BookingService {
         booking.setUserIdSideB(post.getUserId());
         booking.setPost(post);
         this.bookingRepository.save(booking);
-        this.sendNotification(post.getUserId(), "", "", "", FirebaseType.TOKEN, null);
+        Utils.sendNotification(post.getUserId(), "", "", "", FirebaseType.TOKEN, null);
         return new HashMap<>();
     }
 
@@ -143,7 +139,7 @@ public class BookingService {
         }
         booking.setToTime(request.getToTime());
         booking.setFromTime(request.getFromTime());
-        this.sendNotification(booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
+        Utils.sendNotification(booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
         return new HashMap<>();
     }
 
@@ -160,7 +156,7 @@ public class BookingService {
             throw new GeneralException(Constants.DELETE_FAILED);
         }
         this.bookingRepository.delete(booking);
-        this.sendNotification(booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
+        Utils.sendNotification(booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
         return new HashMap<>();
     }
 
@@ -179,7 +175,7 @@ public class BookingService {
         booking.setActive(false);
         booking.setReason(request.getReason());
         this.bookingRepository.save(booking);
-        this.sendNotification(booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
+        Utils.sendNotification(booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
         return new HashMap<>();
     }
 
@@ -190,24 +186,8 @@ public class BookingService {
             booking.setActive(false);
             booking.setReason("INTERNAL_REJECT");
             this.bookingRepository.save(booking);
-            this.sendNotification(booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
+            Utils.sendNotification(booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
         }
     }
 
-    private void sendNotification(String userId, String titile, String content, String template, FirebaseType type, String condition) throws IOException {
-        UserInfo userInfo = Utils.getUserInfo(userId);
-        PushNotificationRequest request = new PushNotificationRequest();
-        request.setUserId(userId);
-        request.setTitle(titile);
-        request.setContent(content);
-        request.setTemplate(template);
-        request.setIsSave(true);
-        request.setType(type);
-        if (type.equals(FirebaseType.TOKEN)) {
-            request.setToken(userInfo.getDeviceToken());
-        } else {
-            request.setCondition(condition);
-        }
-        this.kafkaProducerService.sendMessage(appConf.getTopics().getPushNotification(), "", request);
-    }
 }

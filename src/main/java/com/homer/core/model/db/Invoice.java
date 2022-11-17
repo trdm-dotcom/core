@@ -2,6 +2,7 @@ package com.homer.core.model.db;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.homer.core.model.InvoiceStatus;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -11,28 +12,31 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "t_booking")
-public class Booking {
+@Table(name = "t_invoice")
+public class Invoice {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonProperty
-    private Long id;
+    private String id;
     @JsonProperty
     private String userId;
     @JsonProperty
     private String userIdSideB;
     @JsonProperty
-    private String reason;
+    private Double price;
     @ManyToOne()
     @JsonIgnore
     private Post post;
-    private Boolean active;
+    @OneToOne(mappedBy = "invoice")
+    @PrimaryKeyJoinColumn
+    @JsonIgnore
+    private Transaction transaction;
     @JsonProperty
-    private LocalDateTime fromTime;
+    private String description;
     @JsonProperty
-    private LocalDateTime toTime;
+    private InvoiceStatus status;
     @CreationTimestamp
+    @JsonProperty
     private LocalDateTime createdAt;
     @UpdateTimestamp
+    @JsonProperty
     private LocalDateTime updatedAt;
 }
