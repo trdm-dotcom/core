@@ -3,6 +3,7 @@ package com.homer.core.model.db;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.homer.core.model.TransactionHistoryStatus;
+import com.homer.core.model.TransactionPartner;
 import com.homer.core.model.TransactionType;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -19,6 +20,7 @@ public class TransactionHistory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @JsonProperty
     private Long id;
+    private TransactionPartner partner;
     @JsonProperty
     private String userId;
     @JsonProperty

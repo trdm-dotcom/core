@@ -40,7 +40,6 @@ public class VnPayService {
     private final InvoiceRepository invoiceRepository;
     private final TransactionRepository transactionRepository;
     private final TransactionHistoryRepository transactionHistoryRepository;
-
     private final CallApiService callApiService;
 
     @Autowired
@@ -65,7 +64,7 @@ public class VnPayService {
         if (!userInfo.getIsVerified()) {
             throw new GeneralException(Constants.USER_HADNT_BEEN_VERIFIED);
         }
-        Invoice invoice = this.invoiceRepository.findById(request.getRequestCode()).orElseThrow(() -> new GeneralException("OBJECT_NOT_FOUN"));
+        Invoice invoice = this.invoiceRepository.findById(request.getRequestCode()).orElseThrow(() -> new GeneralException("OBJECT_NOT_FOUND"));
         invoice.setStatus(InvoiceStatus.PAYMENT_WAITING);
         this.invoiceRepository.save(invoice);
         Map<String, Object> vnpParams = buildVnpParams(
@@ -82,36 +81,57 @@ public class VnPayService {
         }};
     }
 
-    private void repairerDeposit(Transaction transaction, Double amount, String orderInfo, String userId, String msgId) throws Exception {
+    private void repairer(Transaction transaction, Invoice invoice, String orderInfo, String userId, String msgId) throws Exception {
         log.info("{} repairer deposit", msgId);
         String txnRef = String.format("%s_%s", userId, VnPayUtil.getRandomNumber(8));
+        invoice.setStatus(InvoiceStatus.REPAIRER_WAITING);
+        this.invoiceRepository.save(invoice);
         Map<String, Object> vnpParams = buildVnpParams(
                 orderInfo,
-                amount,
+                invoice.getPrice() * appConf.getVnPay().getVnPayAmountRate(),
                 InetAddress.getLocalHost().getHostAddress(),
                 txnRef,
                 "vn",
                 appConf.getVnPay().getDepositInfo().getReturnUrl(),
                 appConf.getVnPay().getDepositInfo().getTmnCode());
         String url = this.buildPaymentUrl(vnpParams, appConf.getVnPay().getDepositInfo().getSecureHash());
-        this.callApiService.get(url, null, new ParameterizedTypeReference<HashMap<Object, Object>>() {
-        });
+        Map<Object, Object> reponse = Async.await(this.callApiService.get(url, null, new ParameterizedTypeReference<HashMap<Object, Object>>() {
+        }));
         transaction.setStatus(TransactionStatus.REPAIRER_WAITING);
         this.transactionRepository.save(transaction);
     }
 
-    private Map<String, Object> buildVnpParams(String vnpOrderInfo,
-                                               Double amount,
-                                               String vnpIpAddress,
-                                               String tnxRef,
-                                               String vnpLocale,
-                                               String returnUrl,
-                                               String tmnCode
+    private void refund(Transaction transaction) throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        String userId = transaction.getInvoice().getUserId();
+        Map<String, Object> vnpParams = new HashMap<>();
+        vnpParams.put(VNP_VERSION, appConf.getVnPay().getVnpVersion());
+        vnpParams.put(VNP_COMMAND, "refund");
+        vnpParams.put(VNP_TMN_CODE, appConf.getVnPay().getDepositInfo().getTmnCode());
+        vnpParams.put(VNP_AMOUNT, transaction.getInvoice().getPrice() * appConf.getVnPay().getVnPayAmountRate());
+        vnpParams.put(VNP_TNX_REF, transaction.getRequestCode());
+        vnpParams.put(VNP_ORDER_INFO, "");
+        vnpParams.put(VNP_TRANS_DATE, DateFormatUtil.toString(now, appConf.getVnPay().getDatePattern()));
+        vnpParams.put(VNP_IP_ADDR, InetAddress.getLocalHost().getHostAddress());
+        vnpParams.put(VNP_TRANSACTION_TYPE, "");
+        vnpParams.put(VNP_CREATE_DATE, DateFormatUtil.toString(now, appConf.getVnPay().getDatePattern()));
+        String url = this.buildPaymentUrl(vnpParams, appConf.getVnPay().getDepositInfo().getSecureHash());
+        Map<Object, Object> reponse = Async.await(this.callApiService.get(url, null, new ParameterizedTypeReference<HashMap<Object, Object>>() {
+        }));
+        Utils.sendNotification(userId, "", "", "", FirebaseType.TOKEN, null);
+    }
+
+    private Map<String, Object> buildVnpParams(
+            String vnpOrderInfo,
+            Double amount,
+            String vnpIpAddress,
+            String tnxRef,
+            String vnpLocale,
+            String returnUrl,
+            String tmnCode
 
     ) {
         LocalDateTime now = LocalDateTime.now();
-        log.info("create vnPay url success, amount: " + amount / appConf.getVnPay().getVnPayAmountRate());
-
         Map<String, Object> vnpParams = new HashMap<>();
         vnpParams.put(VNP_VERSION, appConf.getVnPay().getVnpVersion());
         vnpParams.put(VNP_COMMAND, appConf.getVnPay().getVnpCommand());
@@ -126,6 +146,7 @@ public class VnPayService {
         vnpParams.put(VNP_CREATE_DATE, DateFormatUtil.toString(now, appConf.getVnPay().getDatePattern()));
         vnpParams.put(VNP_EXPIRE_DATE, DateFormatUtil.toString(now.plus(appConf.getVnPay().getExpireTime(), ChronoUnit.SECONDS), appConf.getVnPay().getDatePattern()));
         vnpParams.put(VNP_ORDER_TYPE, appConf.getVnPay().getOrderType());
+        log.info("create vnPay url success, amount: " + amount / appConf.getVnPay().getVnPayAmountRate());
         return vnpParams;
     }
 
@@ -199,8 +220,12 @@ public class VnPayService {
             this.saveVnPayTransactionPayment(request, null, "VNP_TXN_REF_EXISTED_IN_DATABASE", optionalInvoice.get());
             throw new GeneralException("VNP_TXN_REF_EXISTED_IN_DATABASE");
         }
+        Invoice invoice = optionalInvoice.get();
+        invoice.setStatus(InvoiceStatus.PAYMENT_COMPLETE);
+        this.invoiceRepository.save(invoice);
         Transaction transaction = this.saveVnPayTransactionPayment(request, optionalInvoice.get().getUserId(), null, optionalInvoice.get());
-        this.repairerDeposit(transaction, request.getVnpAmount(), request.getVnpOrderInfo(), optionalInvoice.get().getUserIdSideB(), msgId);
+        this.repairer(transaction, invoice, request.getVnpOrderInfo(), optionalInvoice.get().getUserIdSideB(), msgId);
+        Utils.sendNotification(transaction.getInvoice().getUserId(), "", "", "", FirebaseType.TOKEN, null);
         return new HashMap<>();
     }
 
@@ -243,10 +268,18 @@ public class VnPayService {
             this.saveVnPayTransactionRepairer(request, transaction, transaction.getInvoice().getUserIdSideB(), "VNP_TXN_REF_EXISTED_IN_DATABASE");
             throw new GeneralException("VNP_TXN_REF_EXISTED_IN_DATABASE");
         }
+        Invoice invoice = optionalInvoice.get();
+        invoice.setStatus(InvoiceStatus.DONE);
+        this.invoiceRepository.save(invoice);
         this.saveVnPayTransactionRepairer(request, transaction, transaction.getInvoice().getUserIdSideB(), null);
         Utils.sendNotification(transaction.getInvoice().getUserIdSideB(), "", "", "", FirebaseType.TOKEN, null);
-        Utils.sendNotification(transaction.getInvoice().getUserId(), "", "", "", FirebaseType.TOKEN, null);
         return new HashMap<>();
+    }
+
+    private void saveVnPayTransactionRepairer(VnPayRequest request, Transaction transaction, String userId, String failReason) {
+        transaction.setStatus(TransactionStatus.REPAIRER_COMPLETE);
+        transaction = this.transactionRepository.save(transaction);
+        this.saveTransactionHistory(request, transaction, userId, failReason, TransactionType.RECEIVE_INVOICE_MONEY);
     }
 
     private Transaction saveVnPayTransactionPayment(VnPayRequest request, String userId, String failReason, Invoice invoice) {
@@ -269,6 +302,7 @@ public class VnPayService {
     private void saveTransactionHistory(VnPayRequest request, Transaction transaction, String userId, String failReason, TransactionType type) {
         TransactionHistory transactionHistory = new TransactionHistory();
         transactionHistory.setUserId(userId);
+        transactionHistory.setPartner(TransactionPartner.VNPAY);
         transactionHistory.setAmount(transactionHistory.getAmount());
         transactionHistory.setTransaction(transaction);
         transactionHistory.setRequestCode(transaction.getRequestCode());
@@ -280,12 +314,7 @@ public class VnPayService {
         transactionHistory.setBankCode(request.getVnpBankCode());
         transactionHistory.setBankTranNo(request.getVnpBankTranNo());
         transactionHistory.setCardType(request.getVnpCardType());
+        transactionHistory.setResponseCode(request.getVnpResponseCode());
         this.transactionHistoryRepository.save(transactionHistory);
-    }
-
-    private void saveVnPayTransactionRepairer(VnPayRequest request, Transaction transaction, String userId, String failReason) {
-        transaction.setStatus(TransactionStatus.REPAIRER_COMPLETE);
-        transaction = this.transactionRepository.save(transaction);
-        this.saveTransactionHistory(request, transaction, userId, failReason, TransactionType.RECEIVE_INVOICE_MONEY);
     }
 }

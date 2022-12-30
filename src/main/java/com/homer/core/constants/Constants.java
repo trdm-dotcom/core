@@ -4,6 +4,7 @@ public class Constants {
     public static String REDIS_KEY_POST = "cache_post";
     public static String REDIS_KEY_WATCHLIST = "cache_watchlist";
     public static String REDIS_KEY_USERINFO = "cache_userinfo";
+    public static String REDIS_KEY_TOKEN = "cache_token";
     public static Integer DEFAULT_FETCH_COUNT = 20;
     public static Integer DEFAULT_OFFSET = 0;
     public static String OBJECT_NOT_FOUND = "OBJECT_NOT_FOUND";

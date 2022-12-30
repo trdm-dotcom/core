@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app")
 @Data
 public class AppConf {
+    private String nodeId;
     private String clusterId;
     private String kafkaUrl;
     private String domain;

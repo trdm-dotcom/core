@@ -23,4 +23,7 @@ public interface VnPayConstants {
      String VNP_CARD_TYPE = "vnp_CardType";
      String VNP_PAY_DATE = "vnp_PayDate";
      String VN_PAY_SUCCESS_CODE = "00";
+     String VNP_TRANS_DATE = "vnp_TransDate";
+
+     String VNP_TRANSACTION_TYPE = "vnp_TransactionType";
 }
