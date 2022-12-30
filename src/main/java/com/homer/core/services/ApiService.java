@@ -29,6 +29,8 @@ import reactor.core.publisher.Mono;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -40,6 +42,7 @@ public class ApiService {
     private final CoordinatorService coordinatorService;
     public static final String TOKEN_ACQUIRE_KEY = "getOperatorToken";
     private final AppConf appConf;
+    private final ExecutorService executorService;
 
     public ApiService(
             RedisDao redisDao,
@@ -49,6 +52,7 @@ public class ApiService {
         this.redisDao = redisDao;
         this.coordinatorService = coordinatorService;
         this.appConf = appConf;
+        this.executorService = Executors.newFixedThreadPool(appConf.getMaxThread());
         this.webClient = () -> WebClient.builder()
                 .filter(ExchangeFilterFunction.ofResponseProcessor(this::exchangeFilterResponseProcessor))
                 .clientConnector(new JettyClientHttpConnector(new CustomHttpClient(new SslContextFactory.Client())))
@@ -59,7 +63,7 @@ public class ApiService {
         return this.webClient.get();
     }
 
-    public <T> CompletableFuture<T> get(String msgId, String host, String url, Consumer<UriBuilder> queryParameterBuilder, String keyToken, Class<T> clazz) {
+    public <T> T get(String msgId, String host, String url, Consumer<UriBuilder> queryParameterBuilder, String keyToken, Class<T> clazz) {
         Token token = this.redisDao.hGet(Constants.REDIS_KEY_TOKEN, keyToken, Token.class);
         return webClient.get()
                 .get()
@@ -75,10 +79,10 @@ public class ApiService {
                 .header("Cache-Control", "no-cache")
                 .retrieve()
                 .bodyToMono(clazz)
-                .toFuture();
+                .block();
     }
 
-    public <T> CompletableFuture<T> post(String msgId, String host, String url, Object body, String keyToken, Class<T> clazz) {
+    public <T> T post(String msgId, String host, String url, Object body, String keyToken, Class<T> clazz) {
         Token token = this.redisDao.hGet(Constants.REDIS_KEY_TOKEN, keyToken, Token.class);
         return webClient.get().post()
                 .uri(uriBuilder -> uriBuilder.host(host).path(url).build())
@@ -89,10 +93,10 @@ public class ApiService {
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(clazz)
-                .toFuture();
+                .block();
     }
 
-    public <T> CompletableFuture<T> put(String msgId, String host, String url, Object body, String keyToken, Class<T> clazz) {
+    public <T> T put(String msgId, String host, String url, Object body, String keyToken, Class<T> clazz) {
         Token token = this.redisDao.hGet(Constants.REDIS_KEY_TOKEN, keyToken, Token.class);
         return webClient.get().put()
                 .uri(uriBuilder -> uriBuilder.host(host).path(url).build())
@@ -103,10 +107,10 @@ public class ApiService {
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(clazz)
-                .toFuture();
+                .block();
     }
 
-    public <T> CompletableFuture<T> delete(String msgId, String host, String url, Consumer<UriBuilder> queryParameterBuilder, String keyToken, Class<T> clazz) {
+    public <T> T delete(String msgId, String host, String url, Consumer<UriBuilder> queryParameterBuilder, String keyToken, Class<T> clazz) {
         Token token = this.redisDao.hGet(Constants.REDIS_KEY_TOKEN, keyToken, Token.class);
         return webClient.get().delete()
                 .uri(uriBuilder -> {
@@ -121,11 +125,10 @@ public class ApiService {
                 .header("Cache-Control", "no-cache")
                 .retrieve()
                 .bodyToMono(clazz)
-                .toFuture()
-                ;
+                .block();
     }
 
-    private <T> CompletableFuture<T> authentication(String host, String url, Object loginRequest, Class<T> clazz) {
+    private <T> T authentication(String host, String url, Object loginRequest, Class<T> clazz) {
         return webClient.get().post()
                 .uri(uriBuilder -> uriBuilder.host(host).path(url).build())
                 .accept(MediaType.APPLICATION_JSON)
@@ -134,20 +137,19 @@ public class ApiService {
                 .body(BodyInserters.fromValue(loginRequest))
                 .retrieve()
                 .bodyToMono(clazz)
-                .toFuture();
+                .block();
 
     }
 
-    public <T> CompletableFuture<T> withAuthenticated(String host, String loginUrl, String refreshUrl, Object loginRequest, Object refreshRequest, String keyToken, Class<T> clazzLogin, Class<T> clazzRefresh, Supplier<CompletableFuture<T>> supplier) {
+    public <T> T withAuthenticated(String host, String loginUrl, String refreshUrl, Object loginRequest, Object refreshRequest, String keyToken, Class<T> clazzLogin, Class<T> clazzRefresh, Supplier<T> supplier) {
         Token token = this.redisDao.hGet(Constants.REDIS_KEY_TOKEN, keyToken, Token.class);
         if (token == null) {
             log.info("no token yet. will get new token");
-            Async.await(this.getToken(host, loginUrl, refreshUrl, keyToken, loginRequest, refreshRequest, clazzLogin, clazzRefresh));
+            Async.await(CompletableFuture.runAsync(() -> this.getToken(host, loginUrl, refreshUrl, keyToken, loginRequest, refreshRequest, clazzLogin, clazzRefresh), this.executorService));
         }
         while (true) {
             try {
-                T data = Async.await(supplier.get());
-                return CompletableFuture.completedFuture(data);
+                return Async.await(CompletableFuture.supplyAsync(supplier, this.executorService));
             } catch (Exception e) {
                 if (!(e.getCause() instanceof SessionExpiredException)) {
                     log.error("error while calling api", e);
@@ -157,7 +159,7 @@ public class ApiService {
             log.info("seem token is expired. will get new token");
             while (true) {
                 try {
-                    Async.await(this.getToken(host, loginUrl, refreshUrl, keyToken, loginRequest, refreshRequest, clazzLogin, clazzRefresh));
+                    Async.await(CompletableFuture.runAsync(() -> this.getToken(host, loginUrl, refreshUrl, keyToken, loginRequest, refreshRequest, clazzLogin, clazzRefresh), this.executorService));
                     break;
                 } catch (Exception ex) {
                     log.error("fail to get token", ex);
@@ -166,7 +168,7 @@ public class ApiService {
         }
     }
 
-    private <T> CompletableFuture<T> refreshToken(String host, String url, Object refreshTokenRequest, Class<T> clazz) {
+    private <T> T refreshToken(String host, String url, Object refreshTokenRequest, Class<T> clazz) {
         return webClient.get().post()
                 .uri(uriBuilder -> uriBuilder.host(host).path(url).build())
                 .accept(MediaType.APPLICATION_JSON)
@@ -175,23 +177,23 @@ public class ApiService {
                 .body(BodyInserters.fromValue(refreshTokenRequest))
                 .retrieve()
                 .bodyToMono(clazz)
-                .toFuture();
+                .block();
     }
 
-    private <T> CompletableFuture<Void> getToken(String host, String loginUrl, String refreshUrl, String keyToken, Object loginRequest, Object refreshRequest, Class<T> clazzLogin, Class<T> clazzRefresh) {
+    private <T> void getToken(String host, String loginUrl, String refreshUrl, String keyToken, Object loginRequest, Object refreshRequest, Class<T> clazzLogin, Class<T> clazzRefresh) {
         String acquireKey = this.coordinatorService.acquire(TOKEN_ACQUIRE_KEY, appConf.getNodeId(), 60);
         if (acquireKey != null) {
             log.warn("getToken got access permission");
             Token token = this.redisDao.hGet(Constants.REDIS_KEY_TOKEN, keyToken, Token.class);
             if (token == null) {
-                Object loginResponse = Async.await(this.authentication(host, loginUrl, loginRequest, clazzLogin));
+                Object loginResponse = Async.await(CompletableFuture.supplyAsync(() -> this.authentication(host, loginUrl, loginRequest, clazzLogin), this.executorService));
                 log.info("login result {}", loginResponse);
             } else {
                 try {
-                    Object refreshTokenResponse = Async.await(this.refreshToken(host, refreshUrl, refreshRequest, clazzRefresh));
+                    Object refreshTokenResponse = Async.await(CompletableFuture.supplyAsync(() -> this.refreshToken(host, refreshUrl, refreshRequest, clazzRefresh), this.executorService));
                 } catch (Exception e) {
                     log.error("fail to refresh token. will login again");
-                    Object loginResponse = Async.await(this.authentication(host, loginUrl, loginRequest, clazzLogin));
+                    Object loginResponse = Async.await(CompletableFuture.supplyAsync(() -> this.authentication(host, loginUrl, loginRequest, clazzLogin), this.executorService));
                     log.info("login result {}", loginResponse);
                 }
             }
@@ -202,7 +204,6 @@ public class ApiService {
             Async.await(this.coordinatorService.waitForResultFuture(TOKEN_ACQUIRE_KEY));
             log.warn("new token has been issued");
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     private Mono<ClientResponse> exchangeFilterResponseProcessor(ClientResponse response) {
