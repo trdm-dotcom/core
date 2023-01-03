@@ -24,7 +24,6 @@ public class RequestHandler extends KafkaRequestHandler {
     private final ObjectMapper objectMapper;
     private final AddressService addressService;
     private final PostService postService;
-    private final VnPayService vnPayService;
     private final WatchlistService watchlistService;
     private final BookingService bookingService;
     private final InvoiceService invoiceService;
@@ -35,7 +34,6 @@ public class RequestHandler extends KafkaRequestHandler {
             AppConf appConf,
             AddressService addressService,
             PostService postService,
-            VnPayService vnPayService,
             WatchlistService watchlistService,
             BookingService bookingService,
             InvoiceService invoiceService
@@ -48,7 +46,6 @@ public class RequestHandler extends KafkaRequestHandler {
         this.objectMapper = objectMapper;
         this.addressService = addressService;
         this.postService = postService;
-        this.vnPayService = vnPayService;
         this.watchlistService = watchlistService;
         this.bookingService = bookingService;
         this.invoiceService = invoiceService;
@@ -130,17 +127,6 @@ public class RequestHandler extends KafkaRequestHandler {
                     RequestingRepairRequest requestingRepairRequest = Message.getData(this.objectMapper, message, RequestingRepairRequest.class);
                     this.invoiceService.createNewInvoice(requestingRepairRequest, message.getTransactionId());
 
-                case "post:/api/v1/core/vnpay/payment/url":
-                    CustomerPaymentUrlRequest customerPaymentUrlRequest = Message.getData(this.objectMapper, message, CustomerPaymentUrlRequest.class);
-                    return this.vnPayService.createCustomerPaymentUrl(customerPaymentUrlRequest, message.getTransactionId());
-
-                case "get:/api/v1/core/vnpay/payment/ipn":
-                    VnPayRequest vnPayCustomerPaymentRequest = Message.getData(this.objectMapper, message, VnPayRequest.class);
-                    return this.vnPayService.responseCustomerPayment(vnPayCustomerPaymentRequest, message.getTransactionId());
-
-                case "get:/api/v1/core/vnpay/deposit/ipn":
-                    VnPayRequest vnPayRepairerDepositRequest = Message.getData(this.objectMapper, message, VnPayRequest.class);
-                    return this.vnPayService.responseRepairerDeposit(vnPayRepairerDepositRequest, message.getTransactionId());
             }
             return true;
         } catch (IllegalArgumentException e) {

@@ -48,25 +48,6 @@ app:
     notification: notification
     pushNotification: push-notification
     syncRedisMysql: sync-redis-mysql
-  vnPay:
-    vnpVersion: 2.1.0
-    vnpCommand: pay
-    vnpCurrCode: VND
-    vnpLocale: vn
-    datePattern: yyyyMMddHHmmss
-    vnPayAmountRate: 100
-    payUrl: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-    expireTime: 3600
-    orderType: ""
-    paymentInfo:
-      returnUrl: ""
-      secureHash: ""
-      tmnCode: ""
-    depositInfo:
-      returnUrl: ""
-      secureHash: ""
-      tmnCode: ""
-
 
 
 

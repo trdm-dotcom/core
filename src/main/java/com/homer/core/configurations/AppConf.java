@@ -15,7 +15,6 @@ public class AppConf {
     private Integer defaultPageSize;
     private Integer defaultPage;
     private Topic topics;
-    private vnPay vnPay;
     private Integer timeModify;
     private Integer descriptionMaxLength;
 
@@ -25,35 +24,6 @@ public class AppConf {
         private String notification;
         private String pushNotification;
         private String syncRedisMysql;
-    }
-
-    @Data
-    public static class vnPay {
-        private String vnpVersion;
-        private String vnpCommand;
-        private String vnpLocale;
-        private String datePattern;
-        private String vnpCurrCode;
-        private Integer vnPayAmountRate;
-        private String payUrl;
-        private Integer expireTime;
-        private String orderType;
-        private PaymentInfo paymentInfo;
-        private DepositInfo depositInfo;
-    }
-
-    @Data
-    public static class PaymentInfo {
-        private String tmnCode;
-        private String secureHash;
-        private String returnUrl;
-    }
-
-    @Data
-    public static class DepositInfo {
-        private String tmnCode;
-        private String secureHash;
-        private String returnUrl;
     }
 
     public String getKafkaBootstraps() {
