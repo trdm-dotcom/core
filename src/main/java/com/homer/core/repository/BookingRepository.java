@@ -15,6 +15,7 @@ import javax.persistence.criteria.Root;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor {
@@ -39,4 +40,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpec
             }
         }, pageable);
     }
+
+    Optional<Booking> findByUserIdAndPostIdAndActiveAndToTimeLessThan(String userId, Long postId, Boolean isActive, LocalDateTime now);
 }

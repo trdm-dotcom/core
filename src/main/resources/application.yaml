@@ -43,11 +43,14 @@ app:
   defaultPageSize: 20
   timeModify: 3600
   descriptionMaxLength: 2500
+  timeStampHash: 30000
   topics:
     userInfo: user-info
     notification: notification
     pushNotification: push-notification
     syncRedisMysql: sync-redis-mysql
-
-
+  aes:
+    key: SWFQT044clhqQ1E1VElVVllCdGN3OFdLR0NmY1FFdGM=
+    iv: TmNSZlVqV25acjR1N3ghQQ==
+    keyHash: wfyxb3sR1O
 

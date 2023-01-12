@@ -15,9 +15,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.security.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Component
@@ -35,37 +45,40 @@ public class Utils {
             KafkaProducerService kafkaProducerService,
             AppConf appConf
     ) {
-        this.redisDao = redisDao;
-        this.objectMapper = objectMapper;
-        this.kafkaProducerService = kafkaProducerService;
-        this.appConf = appConf;
+        Utils.redisDao = redisDao;
+        Utils.objectMapper = objectMapper;
+        Utils.kafkaProducerService = kafkaProducerService;
+        Utils.appConf = appConf;
     }
 
-    public static CompletableFuture<UserInfo> getUserInfo(String msgId, String userId){
+    public static UserInfo getUserInfoKafka(String msgId, String userId) {
         Map<String, String> request = new HashMap<String, String>() {{
             put("id", userId);
         }};
         CompletableFuture<Message> future = kafkaProducerService.sendAsyncRequest(appConf.getTopics().getUserInfo(), null, appConf.getClusterId(), request);
-        try{
-            Map<String, Object> loginResult = new HashMap<>();
+        try {
             Message message = future.get();
             Response response = Message.getData(objectMapper, message, Response.class);
             if (response.getStatus() != null) {
                 throw new RuntimeException(response.getStatus().getCode());
             }
             log.info("{} aaa response data {}", msgId, response.getData());
-            return CompletableFuture.completedFuture(objectMapper.convertValue(response.getData(), UserInfo.class));
-        }catch (Exception e){
-            throw new GeneralException();
+            return objectMapper.convertValue(response.getData(), UserInfo.class);
+        } catch (Exception e) {
+            return null;
         }
     }
 
-    public static UserInfo getUserInfo(String userId){
-        return redisDao.hGet(Constants.REDIS_KEY_USERINFO, userId, UserInfo.class);
+    public static UserInfo getUserInfo(String msgId, String userId) {
+        try {
+            return redisDao.hGet(Constants.REDIS_KEY_USERINFO, userId, UserInfo.class);
+        } catch (Exception e) {
+            return getUserInfoKafka(msgId, userId);
+        }
     }
 
-    public static void sendNotification(String userId, String titile, String content, String template, FirebaseType type, String condition) throws IOException {
-        UserInfo userInfo = Utils.getUserInfo(userId);
+    public static void sendNotification(String msgId, String userId, String titile, String content, String template, FirebaseType type, String condition) throws IOException {
+        UserInfo userInfo = getUserInfo(msgId, userId);
         PushNotificationRequest request = new PushNotificationRequest();
         request.setUserId(userId);
         request.setTitle(titile);
@@ -79,5 +92,48 @@ public class Utils {
             request.setCondition(condition);
         }
         kafkaProducerService.sendMessage(appConf.getTopics().getPushNotification(), "", request);
+    }
+
+    public static Map<String, String> AesDecryptionHash(String hash) throws NoSuchPaddingException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+        cipher.init(Cipher.DECRYPT_MODE, Utils.getAesKey(), Utils.getAesIv());
+        String hashDecrypted = new String(cipher.doFinal(Base64.getDecoder().decode(hash)));
+        log.info(hashDecrypted);
+        Map<String, String> objectHash = new HashMap<>();
+        while (true) {
+            log.info(hashDecrypted);
+            int endKey = hashDecrypted.indexOf("=");
+            int endValue = hashDecrypted.contains("&") ? hashDecrypted.indexOf("&") : hashDecrypted.length();
+            String key = hashDecrypted.substring(0, endKey);
+            String value = hashDecrypted.substring(endKey + 1, endValue);
+            objectHash.put(key, value);
+            if (endValue + 1 > hashDecrypted.length()) {
+                break;
+            }
+            hashDecrypted = hashDecrypted.substring(endValue + 1);
+        }
+        return objectHash;
+    }
+
+    public static void validate(String hash, String type, LocalDateTime now) throws NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
+        Map<String, String> objectHash = AesDecryptionHash(hash);
+        LocalDateTime timeStamp = Instant.ofEpochMilli(Long.parseLong(objectHash.get("timeStamp"))).atZone(ZoneId.systemDefault()).toLocalDateTime();
+        if (!objectHash.get("type").equals(type)
+                || !objectHash.get("key").equals(appConf.getAes().getKeyHash())
+                || now.isBefore(timeStamp)
+        ) {
+            throw new GeneralException("INVALID_HASH");
+        }
+        if (Duration.between(timeStamp, now).toMillis() > appConf.getTimeStampHash()) {
+            throw new GeneralException("TO_FAST");
+        }
+    }
+
+    private static Key getAesKey() {
+        return new SecretKeySpec(Base64.getDecoder().decode(appConf.getAes().getKey()), "AES");
+    }
+
+    private static IvParameterSpec getAesIv() {
+        return new IvParameterSpec(Base64.getDecoder().decode(appConf.getAes().getIv().getBytes()));
     }
 }

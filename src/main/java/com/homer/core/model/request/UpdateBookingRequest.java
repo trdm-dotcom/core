@@ -14,4 +14,5 @@ public class UpdateBookingRequest extends DataRequest {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyyMMdd")
     private LocalDateTime toTime;
     private String reason;
+    private String hash;
 }

@@ -27,7 +27,13 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.io.IOException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -73,10 +79,11 @@ public class PostService {
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Object createNewPost(PostRequest request, String msgId) throws IOException {
+    public Object createNewPost(PostRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         log.info("{} create new post {}", msgId, request);
         request.validate();
-        UserInfo userInfo = Async.await(Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId()));
+        Utils.validate(request.getHash(), "CREATE", LocalDateTime.now());
+        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId());
         if (!userInfo.getIsVerified()) {
             throw new GeneralException(Constants.USER_HADNT_BEEN_VERIFIED);
         }
@@ -133,10 +140,11 @@ public class PostService {
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Object updatePost(PostRequest request, String msgId) throws IOException {
+    public Object updatePost(PostRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         log.info("{} update post {}", msgId, request);
         request.validate();
-        UserInfo userInfo = Async.await(Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId()));
+        Utils.validate(request.getHash(), "UPDATE", LocalDateTime.now());
+        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId());
         if (!userInfo.getIsVerified()) {
             throw new GeneralException(Constants.USER_HADNT_BEEN_VERIFIED);
         }
@@ -246,20 +254,16 @@ public class PostService {
             post = this.postRepository.findById(request.getId()).orElseThrow(() -> new GeneralException("OBJECT_NOT_FOUND"));
             this.savePostToRedis(new PostDTO(post), SyncType.INSERT);
         }
-        UserInfo userInfo = null;
-        try {
-            userInfo = Async.await(Utils.getUserInfo(msgId, post.getUserId()));
-        } catch (Exception e) {
-            log.error(e.getMessage());
-        }
+        UserInfo userInfo = Utils.getUserInfo(msgId, post.getUserId());
         return new HashMap<>();
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Object deletePost(PostRequest request, String msgId) throws IOException {
+    public Object deletePost(PostRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         log.info("{} delete post {}", msgId, request);
         request.validate();
-        UserInfo userInfo = Async.await(Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId()));
+        Utils.validate(request.getHash(), "DELETE", LocalDateTime.now());
+        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId());
         if (!userInfo.getIsVerified()) {
             throw new GeneralException(Constants.USER_HADNT_BEEN_VERIFIED);
         }

@@ -17,6 +17,7 @@ import com.homer.core.model.request.FilterPostRequest;
 import com.homer.core.model.request.GetWatchlistRequest;
 import com.homer.core.repository.PostRepository;
 import com.homer.core.repository.WatchlistRepository;
+import com.homer.core.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,14 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.io.IOException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -61,8 +69,10 @@ public class WatchlistService {
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Object addWatchList(AddWatchListRequest request, String msgId) throws IOException {
+    public Object addWatchList(AddWatchListRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         log.info("{} add watch list {}", msgId, request);
+        request.validate();
+        Utils.validate(request.getHash(), "ADD", LocalDateTime.now());
         Watchlist watchlist = watchlistRepository.findByUserId(request.getHeaders().getToken().getUserData().getUserId()).orElse(new Watchlist());
         Post post = postRepository.findById(request.getPostId()).orElseThrow(() -> new GeneralException(Constants.OBJECT_NOT_FOUND));
         Collection<Post> posts = watchlist.getPosts();
@@ -73,8 +83,10 @@ public class WatchlistService {
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
-    public Object deleteWatchList(DeleteWatchListRequest request, String msgId) throws IOException {
+    public Object deleteWatchList(DeleteWatchListRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         log.info("{} delete watch list {}", msgId, request);
+        request.validate();
+        Utils.validate(request.getHash(), "DELETE", LocalDateTime.now());
         Watchlist watchlist = watchlistRepository.findByUserId(request.getHeaders().getToken().getUserData().getUserId()).orElseThrow(() -> new GeneralException(Constants.OBJECT_NOT_FOUND));
         List<Post> posts = postRepository.findByIdIn(request.getPostIds());
         if (!CollectionUtils.isEmpty(posts)) {

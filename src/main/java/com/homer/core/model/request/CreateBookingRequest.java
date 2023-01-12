@@ -18,4 +18,5 @@ public class CreateBookingRequest extends DataRequest {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyyMMdd")
     private LocalDateTime toTime;
     private Long postId;
+    private String hash;
 }

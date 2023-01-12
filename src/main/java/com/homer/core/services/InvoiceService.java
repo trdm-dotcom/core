@@ -43,7 +43,7 @@ public class InvoiceService {
     public Object createNewInvoice(RequestingRepairRequest request, String msgId){
         log.info("{} createInvoice {}", msgId, request);
         request.validate();
-        UserInfo userInfo = Async.await(Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId()));
+        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId());
         if(!userInfo.getIsVerified()){
             throw new GeneralException(Constants.CREATE_FAILED);
         }

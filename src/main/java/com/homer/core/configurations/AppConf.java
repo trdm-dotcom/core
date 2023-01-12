@@ -17,6 +17,8 @@ public class AppConf {
     private Topic topics;
     private Integer timeModify;
     private Integer descriptionMaxLength;
+    private Aes aes;
+    private Integer timeStampHash;
 
     @Data
     public static class Topic {
@@ -24,6 +26,13 @@ public class AppConf {
         private String notification;
         private String pushNotification;
         private String syncRedisMysql;
+    }
+
+    @Data
+    public static class Aes {
+        private String key;
+        private String iv;
+        private String keyHash;
     }
 
     public String getKafkaBootstraps() {

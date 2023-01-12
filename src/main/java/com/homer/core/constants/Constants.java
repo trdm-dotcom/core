@@ -16,4 +16,5 @@ public class Constants {
     public static String MODIFY_FAILED = "MODIFY_FAILED";
     public static String DELETE_FAILED = "DELETE_FAILED";
     public static String REJECT_FAILED = "REJECT_FAILED";
+    public static String ALREADY_EXISTS = "ALREADY_EXISTS";
 }
