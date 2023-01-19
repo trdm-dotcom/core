@@ -2,30 +2,29 @@ package com.homer.core.model.db;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 
 import javax.persistence.*;
+import java.util.ArrayList;
 import java.util.Collection;
 
 @Entity
-@Data
-@Table(name = "t_cities")
+@Getter
+@Setter
+@Table(name = "t_city")
 @NoArgsConstructor
 @AllArgsConstructor
 public class City {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @JsonProperty
     private Long id;
     @JsonProperty
     private String name;
     @JsonProperty
     private String codeName;
-    @OneToMany(mappedBy = "city")
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, mappedBy = "city")
     @JsonIgnore
-    private Collection<Post> post;
+    private Collection<Post> posts = new ArrayList<>();
 }

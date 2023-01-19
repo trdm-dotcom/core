@@ -1,4 +1,4 @@
-package com.homer.core;
+package com.homer.core.utils;
 
 import com.homer.core.utils.Utils;
 import org.junit.jupiter.api.Test;

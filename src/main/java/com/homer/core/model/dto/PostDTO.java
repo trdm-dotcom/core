@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 @Data
@@ -21,11 +22,13 @@ public class PostDTO {
     private City city;
     private District district;
     private Commune commune;
-    private Collection<Image> image;
-    private Collection<Feature> features;
+    private Collection<Object> image = new ArrayList<>();
+    private Collection<Feature> features = new ArrayList<>();
     private String description;
     private Category category;
     private Integer minMonth;
+    private Double latitude;
+    private Double longitude;
 
     public PostDTO(Post post) {
         this.id = post.getId();
@@ -36,10 +39,12 @@ public class PostDTO {
         this.city = post.getCity();
         this.district = post.getDistrict();
         this.commune = post.getCommune();
-        this.image = post.getImages();
+        this.image = post.getImages().toList();
         this.features = post.getFeatures();
         this.userId = post.getUserId();
         this.category = post.getCategory();
         this.minMonth = post.getMinMonth();
+        this.latitude = post.getLatitude();
+        this.longitude = post.getLongitude();
     }
 }

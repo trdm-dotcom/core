@@ -98,10 +98,8 @@ public class Utils {
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
         cipher.init(Cipher.DECRYPT_MODE, Utils.getAesKey(), Utils.getAesIv());
         String hashDecrypted = new String(cipher.doFinal(Base64.getDecoder().decode(hash)));
-        log.info(hashDecrypted);
         Map<String, String> objectHash = new HashMap<>();
         while (true) {
-            log.info(hashDecrypted);
             int endKey = hashDecrypted.indexOf("=");
             int endValue = hashDecrypted.contains("&") ? hashDecrypted.indexOf("&") : hashDecrypted.length();
             String key = hashDecrypted.substring(0, endKey);
@@ -129,11 +127,28 @@ public class Utils {
         }
     }
 
-    private static Key getAesKey() {
+    public static Key getAesKey() {
         return new SecretKeySpec(Base64.getDecoder().decode(appConf.getAes().getKey()), "AES");
     }
 
-    private static IvParameterSpec getAesIv() {
+    public static IvParameterSpec getAesIv() {
         return new IvParameterSpec(Base64.getDecoder().decode(appConf.getAes().getIv().getBytes()));
+    }
+
+    public static String AesEncryptionHash(String str) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+        cipher.init(Cipher.ENCRYPT_MODE, getAesKey(), getAesIv());
+        return Base64.getEncoder().encodeToString(cipher.doFinal(str.getBytes()));
+    }
+
+    public static Double haversineDistance(Double lat1, Double lon1, Double lat2, Double lon2) {
+        double R = 6371.0088; // Earth's radius Km
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        lat1 = Math.toRadians(lat1);
+        lat2 = Math.toRadians(lat2);
+        double a = Math.pow(Math.sin(dLat / 2), 2) + Math.pow(Math.sin(dLon / 2), 2) * Math.cos(lat1) * Math.cos(lat2);
+        double c = 2 * Math.asin(Math.sqrt(a));
+        return R * c;
     }
 }

@@ -35,6 +35,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -73,40 +74,54 @@ public class WatchlistService {
         log.info("{} add watch list {}", msgId, request);
         request.validate();
         Utils.validate(request.getHash(), "ADD", LocalDateTime.now());
-        Watchlist watchlist = watchlistRepository.findByUserId(request.getHeaders().getToken().getUserData().getUserId()).orElse(new Watchlist());
+        String userId = request.getHeaders().getToken().getUserData().getId();
+        Watchlist watchlist = watchlistRepository.findByUserId(userId).orElse(new Watchlist());
+        if (watchlist.getPosts() != null && watchlist.getPosts().stream().map(Post::getId).collect(Collectors.toList()).contains(request.getPostId())) {
+            return new HashMap<String, String>() {{
+                put("message", "ALREADY_EXISTS");
+            }};
+        }
+        watchlist.setUserId(userId);
         Post post = postRepository.findById(request.getPostId()).orElseThrow(() -> new GeneralException(Constants.OBJECT_NOT_FOUND));
         Collection<Post> posts = watchlist.getPosts();
         posts.add(post);
         WatchlistDTO result = new WatchlistDTO(watchlistRepository.save(watchlist));
         this.saveWatchToRedis(result, SyncType.UPDATE);
-        return new HashMap<>();
+        return new HashMap<String, Object>() {{
+            put("message", Constants.CREATE_SUCCESS);
+        }};
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Object deleteWatchList(DeleteWatchListRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         log.info("{} delete watch list {}", msgId, request);
         request.validate();
-        Utils.validate(request.getHash(), "DELETE", LocalDateTime.now());
-        Watchlist watchlist = watchlistRepository.findByUserId(request.getHeaders().getToken().getUserData().getUserId()).orElseThrow(() -> new GeneralException(Constants.OBJECT_NOT_FOUND));
-        List<Post> posts = postRepository.findByIdIn(request.getPostIds());
-        if (!CollectionUtils.isEmpty(posts)) {
-            watchlist.getPosts().removeAll(posts);
+        if (CollectionUtils.isEmpty(request.getPostIds())) {
+            throw new GeneralException(Constants.DELETE_FAILED);
         }
+        Utils.validate(request.getHash(), "DELETE", LocalDateTime.now());
+        Watchlist watchlist = watchlistRepository.findByUserId(request.getHeaders().getToken().getUserData().getId()).orElseThrow(() -> new GeneralException(Constants.OBJECT_NOT_FOUND));
+        List<Post> removePosts = watchlist.getPosts().stream().filter(p -> request.getPostIds().contains(p.getId())).collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(removePosts)) {
+            return new HashMap<>();
+        }
+        watchlist.getPosts().removeAll(removePosts);
         WatchlistDTO result = new WatchlistDTO(watchlistRepository.save(watchlist));
         this.saveWatchToRedis(result, SyncType.UPDATE);
-        return new HashMap<>();
+        return new HashMap<String, Object>() {{
+            put("message", Constants.DELETE_SUCCESS);
+        }};
     }
 
-    public List<PostDTO> getWatchList(GetWatchlistRequest request, String msgId){
+    public List<PostDTO> getWatchList(GetWatchlistRequest request, String msgId) {
         log.info("{} get watch list {}", msgId, request);
         List<PostDTO> list = new ArrayList<>();
         WatchlistDTO watchlistDTO = null;
         try {
-            watchlistDTO = this.redisDao.hGet(Constants.REDIS_KEY_WATCHLIST, request.getHeaders().getToken().getUserData().getUserId(), WatchlistDTO.class);
-        }
-        catch (Exception e){
+            watchlistDTO = this.redisDao.hGet(Constants.REDIS_KEY_WATCHLIST, request.getHeaders().getToken().getUserData().getId(), WatchlistDTO.class);
+        } catch (Exception e) {
             Watchlist watchlist = watchlistRepository.findByUserId(request.getHeaders().getToken().getUserId()).orElse(null);
-            if (watchlist == null){
+            if (watchlist == null) {
                 return list;
             }
             watchlistDTO = new WatchlistDTO(watchlist);

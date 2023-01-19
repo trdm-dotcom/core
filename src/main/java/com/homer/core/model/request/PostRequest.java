@@ -7,6 +7,7 @@ import com.homer.core.common.utils.validator.NumberValidator;
 import com.homer.core.common.utils.validator.StringValidator;
 import com.homer.core.model.Category;
 import lombok.Data;
+import org.json.JSONArray;
 
 import java.util.List;
 
@@ -27,6 +28,8 @@ public class PostRequest extends DataRequest {
     private List<String> images;
     private List<Long> features;
     private Integer minMonth;
+    private Double latitude;
+    private Double longitude;
 
     public void validate(){
         new CombineValidator()

@@ -16,5 +16,9 @@ public class Constants {
     public static String MODIFY_FAILED = "MODIFY_FAILED";
     public static String DELETE_FAILED = "DELETE_FAILED";
     public static String REJECT_FAILED = "REJECT_FAILED";
+    public static String CREATE_SUCCESS = "CREATE_SUCCESS";
+    public static String MODIFY_SUCCESS = "MODIFY_SUCCESS";
+    public static String DELETE_SUCCESS = "DELETE_SUCCESS";
+    public static String REJECT_SUCCESS = "REJECT_SUCCESS";
     public static String ALREADY_EXISTS = "ALREADY_EXISTS";
 }

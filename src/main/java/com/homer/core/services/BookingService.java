@@ -56,7 +56,7 @@ public class BookingService {
 
     public Object createBooking(CreateBookingRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         log.info("{} create booking {}", msgId, request);
-        String userId = request.getHeaders().getToken().getUserData().getUserId();
+        String userId = request.getHeaders().getToken().getUserData().getId();
         UserInfo userInfo = Utils.getUserInfo(msgId, userId);
         if (!userInfo.getIsVerified()) {
             throw new GeneralException(Constants.USER_HADNT_BEEN_VERIFIED);
@@ -87,7 +87,7 @@ public class BookingService {
         if (!post.getIsPublic()) {
             throw new GeneralException(Constants.CREATE_FAILED);
         }
-        if (post.getUserId().equals(request.getHeaders().getToken().getUserData().getUserId())) {
+        if (post.getUserId().equals(request.getHeaders().getToken().getUserData().getId())) {
             throw new GeneralException(Constants.CREATE_FAILED);
         }
         Optional<Booking> opt = this.bookingRepository.findByUserIdAndPostIdAndActiveAndToTimeLessThan(userId, post.getId(), true, LocalDateTime.now());
@@ -103,7 +103,9 @@ public class BookingService {
         booking.setPost(post);
         this.bookingRepository.save(booking);
         Utils.sendNotification(msgId, post.getUserId(), "", "", "", FirebaseType.TOKEN, null);
-        return new HashMap<>();
+        return new HashMap<String, Object>() {{
+            put("message", Constants.CREATE_SUCCESS);
+        }};
     }
 
     public List<BookingDTO> getBooking(GetBookingRequest request, String msgId) {
@@ -112,7 +114,7 @@ public class BookingService {
         int offset = request.getOffset() == null ? Constants.DEFAULT_OFFSET : Math.max(request.getOffset(), Constants.DEFAULT_OFFSET);
         int fetchCount = request.getFetchCount() == null ? Constants.DEFAULT_FETCH_COUNT : Math.max(request.getFetchCount(), Constants.DEFAULT_FETCH_COUNT);
         return this.bookingRepository.findAll(request.getSide(),
-                        request.getHeaders().getToken().getUserData().getUserId(),
+                        request.getHeaders().getToken().getUserData().getId(),
                         request.getFromTime(),
                         request.getToTime(),
                         PageRequest.of(offset, fetchCount))
@@ -140,7 +142,7 @@ public class BookingService {
         if (StringUtil.isNullOrEmpty(request.getHash())) {
             throw new InvalidValueException("hash");
         }
-        if (!booking.getUserId().equals(request.getHeaders().getToken().getUserData().getUserId())) {
+        if (!booking.getUserId().equals(request.getHeaders().getToken().getUserData().getId())) {
             throw new GeneralException(Constants.MODIFY_FAILED);
         }
         if (request.getFromTime().isBefore(LocalDateTime.now())) {
@@ -159,7 +161,9 @@ public class BookingService {
         booking.setToTime(request.getToTime());
         booking.setFromTime(request.getFromTime());
         Utils.sendNotification(msgId, booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
-        return new HashMap<>();
+        return new HashMap<String, Object>() {{
+            put("message", Constants.MODIFY_SUCCESS);
+        }};
     }
 
     public Object deleteBooking(UpdateBookingRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
@@ -171,13 +175,15 @@ public class BookingService {
         if (booking.getFromTime().plus(appConf.getTimeModify(), ChronoUnit.SECONDS).isAfter(LocalDateTime.now())) {
             throw new GeneralException(Constants.DELETE_FAILED);
         }
-        if (!booking.getUserId().equals(request.getHeaders().getToken().getUserData().getUserId())) {
+        if (!booking.getUserId().equals(request.getHeaders().getToken().getUserData().getId())) {
             throw new GeneralException(Constants.DELETE_FAILED);
         }
         Utils.validate(request.getHash(), "DELETE", LocalDateTime.now());
         this.bookingRepository.delete(booking);
         Utils.sendNotification(msgId, booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
-        return new HashMap<>();
+        return new HashMap<String, Object>() {{
+            put("message", Constants.DELETE_SUCCESS);
+        }};
     }
 
     public Object rejectBooking(UpdateBookingRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
@@ -193,7 +199,7 @@ public class BookingService {
         if (booking.getFromTime().plus(appConf.getTimeModify(), ChronoUnit.SECONDS).isAfter(LocalDateTime.now())) {
             throw new GeneralException(Constants.DELETE_FAILED);
         }
-        if (!booking.getUserIdSideB().equals(request.getHeaders().getToken().getUserData().getUserId())) {
+        if (!booking.getUserIdSideB().equals(request.getHeaders().getToken().getUserData().getId())) {
             throw new GeneralException(Constants.REJECT_FAILED);
         }
         Utils.validate(request.getHash(), "REJECT", LocalDateTime.now());
@@ -201,12 +207,14 @@ public class BookingService {
         booking.setReason(request.getReason());
         this.bookingRepository.save(booking);
         Utils.sendNotification(msgId, booking.getPost().getUserId(), "", "", "", FirebaseType.TOKEN, null);
-        return new HashMap<>();
+        return new HashMap<String, Object>() {{
+            put("message", Constants.REJECT_SUCCESS);
+        }};
     }
 
-    public void internalRejectBooking(InternalRejectBookingRequest request, String msgId) throws IOException {
-        log.info("{} internal reject booking {}", msgId, request);
-        List<Booking> bookings = this.bookingRepository.findByPostId(request.getId());
+    public void internalRejectBooking(Post post, String msgId) throws IOException {
+        log.info("{} internal reject booking {}", msgId, post);
+        List<Booking> bookings = this.bookingRepository.findByPost(post);
         for (Booking booking : bookings) {
             booking.setActive(false);
             booking.setReason("INTERNAL_REJECT");

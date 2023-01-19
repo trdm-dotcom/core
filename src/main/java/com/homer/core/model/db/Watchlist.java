@@ -3,6 +3,8 @@ package com.homer.core.model.db;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -11,7 +13,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "t_watchlist")
 public class Watchlist {
@@ -22,7 +25,7 @@ public class Watchlist {
     private String userId;
     @ManyToMany()
     @JoinTable(
-            name = "watchlist_posts",
+            name = "t_post_watchlist",
             joinColumns = @JoinColumn(name = "watchlist_id"),
             inverseJoinColumns = @JoinColumn(name = "post_id"))
     @JsonIgnore

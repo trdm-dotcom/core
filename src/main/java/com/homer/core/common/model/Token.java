@@ -28,6 +28,6 @@ public class Token {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class UserData {
         protected String username;
-        protected String userId;
+        protected String id;
     }
 }

@@ -6,15 +6,18 @@ import com.homer.core.model.TransactionHistoryStatus;
 import com.homer.core.model.TransactionPartner;
 import com.homer.core.model.TransactionType;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
 @Entity
-@Table(name = "t_transaction_histories")
+@Table(name = "t_transaction_history")
 public class TransactionHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +47,7 @@ public class TransactionHistory {
     @JsonProperty
     private TransactionType type;
     @ManyToOne()
+    @JoinColumn(name = "transaction_id", nullable = false)
     @JsonIgnore
     private Transaction transaction;
     @JsonProperty

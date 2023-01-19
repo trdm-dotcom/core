@@ -19,4 +19,6 @@ public class FilterPostRequest {
     private List<Long> features;
     private Integer offset;
     private Integer fetchCount;
+    private Double latitude;
+    private Double longitude;
 }

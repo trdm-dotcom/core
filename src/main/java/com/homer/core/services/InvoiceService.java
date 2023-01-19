@@ -43,7 +43,7 @@ public class InvoiceService {
     public Object createNewInvoice(RequestingRepairRequest request, String msgId){
         log.info("{} createInvoice {}", msgId, request);
         request.validate();
-        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId());
+        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getId());
         if(!userInfo.getIsVerified()){
             throw new GeneralException(Constants.CREATE_FAILED);
         }
@@ -55,7 +55,7 @@ public class InvoiceService {
             throw new GeneralException(Constants.CREATE_FAILED);
         }
         Invoice invoice = new Invoice();
-        invoice.setUserId(request.getHeaders().getToken().getUserData().getUserId());
+        invoice.setUserId(request.getHeaders().getToken().getUserData().getId());
         invoice.setUserIdSideB(post.getUserId());
         invoice.setPost(post);
         invoice.setStatus(InvoiceStatus.PENDING);

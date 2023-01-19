@@ -1,6 +1,6 @@
 package com.homer.core.services;
 
-import com.ea.async.Async;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.homer.core.common.exceptions.GeneralException;
 import com.homer.core.common.exceptions.InvalidValueException;
 import com.homer.core.common.redis.RedisDao;
@@ -11,8 +11,8 @@ import com.homer.core.model.RedisType;
 import com.homer.core.model.SyncType;
 import com.homer.core.model.db.*;
 import com.homer.core.model.dto.PostDTO;
+import com.homer.core.model.dto.UserInfoDTO;
 import com.homer.core.model.request.FilterPostRequest;
-import com.homer.core.model.request.InternalRejectBookingRequest;
 import com.homer.core.model.request.PostDetailRequest;
 import com.homer.core.model.request.PostRequest;
 import com.homer.core.model.response.UserInfo;
@@ -20,12 +20,14 @@ import com.homer.core.repository.*;
 import com.homer.core.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
+import org.json.JSONArray;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -83,7 +85,7 @@ public class PostService {
         log.info("{} create new post {}", msgId, request);
         request.validate();
         Utils.validate(request.getHash(), "CREATE", LocalDateTime.now());
-        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId());
+        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getId());
         if (!userInfo.getIsVerified()) {
             throw new GeneralException(Constants.USER_HADNT_BEEN_VERIFIED);
         }
@@ -109,8 +111,9 @@ public class PostService {
             commune = this.communeRepository.findById(request.getCommune()).orElse(null);
         }
         List<Feature> features = this.featureRepository.findAllById(request.getFeatures());
+        log.info("{} features {}", msgId, features);
         Post post = new Post();
-        post.setUserId(request.getHeaders().getToken().getUserData().getUserId());
+        post.setUserId(request.getHeaders().getToken().getUserData().getId());
         post.setName(request.getName());
         post.setDescription(request.getDescription());
         post.setCategory(request.getCategory());
@@ -124,19 +127,17 @@ public class PostService {
         post.setCommune(commune);
         post.setFeatures(features);
         post.setMinMonth(request.getMinMonth());
-        Collection<Image> images = request.getImages().stream().map(i -> {
-            Image image = new Image();
-            image.setUrl(i);
-            image.setName(post.getName());
-            image.setPost(post);
-            return image;
-        }).collect(Collectors.toSet());
-        post.setImages(images);
-        PostDTO result = new PostDTO(this.postRepository.save(post));
+        post.setImages(new JSONArray(request.getImages()));
+        post.setLatitude(request.getLatitude());
+        post.setLongitude(request.getLongitude());
+        post = this.postRepository.save(post);
+        PostDTO result = new PostDTO(post);
         if (request.getIsPublic() == null || request.getIsPublic()) {
             this.savePostToRedis(result, SyncType.INSERT);
         }
-        return result;
+        return new HashMap<String, Object>() {{
+            put("message", Constants.CREATE_SUCCESS);
+        }};
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
@@ -144,7 +145,7 @@ public class PostService {
         log.info("{} update post {}", msgId, request);
         request.validate();
         Utils.validate(request.getHash(), "UPDATE", LocalDateTime.now());
-        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId());
+        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getId());
         if (!userInfo.getIsVerified()) {
             throw new GeneralException(Constants.USER_HADNT_BEEN_VERIFIED);
         }
@@ -170,7 +171,7 @@ public class PostService {
             commune = this.communeRepository.findById(request.getCommune()).orElse(null);
         }
         Post post = this.postRepository.findById(request.getId()).orElseThrow(() -> new GeneralException("OBJECT_NOT_FOUND"));
-        if (!post.getUserId().equals(request.getHeaders().getToken().getUserData().getUserId())) {
+        if (!post.getUserId().equals(request.getHeaders().getToken().getUserData().getId())) {
             throw new GeneralException("OBJECT_NOT_FOUND");
         }
 
@@ -188,14 +189,10 @@ public class PostService {
         post.setCommune(commune);
         post.setFeatures(features);
         post.setMinMonth(request.getMinMonth());
-        Collection<Image> images = request.getImages().stream().map(i -> {
-            Image image = new Image();
-            image.setUrl(i);
-            image.setName(post.getName());
-            image.setPost(post);
-            return image;
-        }).collect(Collectors.toSet());
-        post.setImages(images);
+        post.setLatitude(request.getLatitude());
+        post.setLongitude(request.getLongitude());
+        post.setImages(new JSONArray(request.getImages()));
+        post = this.postRepository.save(post);
         PostDTO result = new PostDTO(post);
         if (request.getIsPublic() == null || request.getIsPublic()) {
             this.savePostToRedis(result, SyncType.UPDATE);
@@ -205,18 +202,19 @@ public class PostService {
                 throw new GeneralException(Constants.MODIFY_FAILED);
             }
             this.savePostToRedis(result, SyncType.DELETE);
-            this.doInternalRejectBooking(post.getId(), msgId);
+            this.doInternalRejectBooking(post, msgId);
         }
-        this.postRepository.save(post);
-        return new HashMap<>();
+        return new HashMap<String, Object>() {{
+            put("message", Constants.MODIFY_SUCCESS);
+        }};
     }
 
     public List<PostDTO> getPost(FilterPostRequest request, String msgId) {
         log.info("{} get post {}", msgId, request);
         int offset = request.getOffset() == null ? Constants.DEFAULT_OFFSET : Math.max(request.getOffset(), Constants.DEFAULT_OFFSET);
         int fetchCount = request.getFetchCount() == null ? Constants.DEFAULT_FETCH_COUNT : Math.max(request.getFetchCount(), Constants.DEFAULT_FETCH_COUNT);
-        List<PostDTO> list = this.redisDao.hGetAll(Constants.REDIS_KEY_POST, PostDTO.class);
-        log.info("list 1 {}", list);
+        List<PostDTO> list = this.redisDao.hGetAll(Constants.REDIS_KEY_POST, new TypeReference<PostDTO>() {
+        });
         if (CollectionUtils.isEmpty(list)) {
             list = this.postRepository.findAll(
                             request.getIds(),
@@ -244,7 +242,7 @@ public class PostService {
                     .limit(fetchCount)
                     .collect(Collectors.toList());
         }
-        return list;
+        return this.filterLocation(request.getLatitude(), request.getLongitude(), list);
     }
 
     public Object getPostDetail(PostDetailRequest request, String msgId) throws IOException {
@@ -255,15 +253,21 @@ public class PostService {
             this.savePostToRedis(new PostDTO(post), SyncType.INSERT);
         }
         UserInfo userInfo = Utils.getUserInfo(msgId, post.getUserId());
-        return new HashMap<>();
+        Post finalPost = post;
+        return new HashMap<String, Object>() {{
+            put("post", new PostDTO(finalPost));
+            put("user", new UserInfoDTO(userInfo.getUsername(), userInfo.getFullname()));
+        }};
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public Object deletePost(PostRequest request, String msgId) throws IOException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         log.info("{} delete post {}", msgId, request);
-        request.validate();
+        if (!StringUtils.hasText(request.getHash())) {
+            throw new InvalidValueException("hash");
+        }
         Utils.validate(request.getHash(), "DELETE", LocalDateTime.now());
-        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getUserId());
+        UserInfo userInfo = Utils.getUserInfo(msgId, request.getHeaders().getToken().getUserData().getId());
         if (!userInfo.getIsVerified()) {
             throw new GeneralException(Constants.USER_HADNT_BEEN_VERIFIED);
         }
@@ -271,17 +275,22 @@ public class PostService {
             throw new InvalidValueException("id");
         }
         Post post = this.postRepository.findById(request.getId()).orElseThrow(() -> new GeneralException("OBJECT_NOT_FOUND"));
-        if (!post.getUserId().equals(request.getHeaders().getToken().getUserData().getUserId())) {
+        if (!post.getUserId().equals(request.getHeaders().getToken().getUserData().getId())) {
             throw new GeneralException(Constants.DELETE_FAILED);
         }
+        post.getBookings().removeAll(post.getBookings());
+        post.getFeatures().removeAll(post.getFeatures());
+        post.getWatchlist().removeAll(post.getWatchlist());
         List<Booking> bookings = this.bookingRepository.findByPostIdAndFromTimeBetween(post.getId(), LocalDateTime.now(), LocalDateTime.now().plus(appConf.getTimeModify(), ChronoUnit.SECONDS));
         if (CollectionUtils.isNotEmpty(bookings)) {
             throw new GeneralException(Constants.DELETE_FAILED);
         }
-        this.postRepository.delete(post);
         this.savePostToRedis(new PostDTO(post), SyncType.DELETE);
-        this.doInternalRejectBooking(post.getId(), msgId);
-        return new HashMap<>();
+        this.doInternalRejectBooking(post, msgId);
+        this.postRepository.delete(post);
+        return new HashMap<String, Object>() {{
+            put("message", Constants.DELETE_SUCCESS);
+        }};
     }
 
     private void savePostToRedis(PostDTO post, SyncType type) throws IOException {
@@ -336,9 +345,14 @@ public class PostService {
         return allPredicates;
     }
 
-    private void doInternalRejectBooking(Long id, String msgId) throws IOException {
-        InternalRejectBookingRequest request = new InternalRejectBookingRequest();
-        request.setId(id);
-        this.bookingService.internalRejectBooking(request, msgId);
+    private void doInternalRejectBooking(Post post, String msgId) throws IOException {
+        this.bookingService.internalRejectBooking(post, msgId);
+    }
+
+    private List<PostDTO> filterLocation(Double latitude, Double longitude, List<PostDTO> posts) {
+        if (latitude == null || longitude == null) {
+            return posts;
+        }
+        return posts.stream().filter(i -> Utils.haversineDistance(latitude, longitude, i.getLatitude(), i.getLatitude()) < 5).collect(Collectors.toList());
     }
 }

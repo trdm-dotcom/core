@@ -1,15 +1,13 @@
 package com.homer.core.model.db;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.homer.core.configurations.JSONArrayConverter;
 import com.homer.core.model.Category;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.json.JSONArray;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -17,12 +15,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 
-@Data
+@Getter
+@Setter
 @Entity
-@Table(name = "t_posts")
+@Table(name = "t_post")
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class Post implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,32 +44,44 @@ public class Post implements Serializable {
     private String description;
     @JsonProperty
     private Double size;
-    @OneToMany(mappedBy = "post")
-    @JsonProperty
-    private Collection<Image> images;
-
+    @Lob
+    @Convert(converter = JSONArrayConverter.class)
+    @JsonIgnore
+    private JSONArray images;
     @ManyToMany()
     @JoinTable(
-            name = "feature_posts",
-            joinColumns = @JoinColumn(name = "feature_id"),
-            inverseJoinColumns = @JoinColumn(name = "post_id"))
-    @JsonProperty
+            name = "t_post_feature",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "feature_id"))
+    @JsonIgnore
     private Collection<Feature> features = new ArrayList<>();
     @OneToMany(mappedBy = "post")
     @JsonIgnore
     private Collection<Booking> bookings = new ArrayList<>();
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne()
+    @JoinColumn(name = "city_id", nullable = false)
     @JsonIgnore
     private City city;
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne()
+    @JoinColumn(name = "commune_id", nullable = false)
     @JsonIgnore
     private Commune commune;
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne()
+    @JoinColumn(name = "district_id", nullable = false)
     @JsonIgnore
     private District district;
     @OneToMany(mappedBy = "post")
     @JsonIgnore
-    private Collection<Invoice> invoices;
+    private Collection<Invoice> invoices = new ArrayList<>();
+    @ManyToMany()
+    @JoinTable(
+            name = "t_post_watchlist",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "watchlist_id"))
+    @JsonIgnore
+    private Collection<Watchlist> Watchlist = new ArrayList<>();
+    private Double latitude;
+    private Double longitude;
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp

@@ -4,13 +4,16 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.homer.core.model.InvoiceStatus;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "t_invoice")
 public class Invoice {
@@ -23,6 +26,7 @@ public class Invoice {
     @JsonProperty
     private Double price;
     @ManyToOne()
+    @JoinColumn(name = "post_id", nullable = false)
     @JsonIgnore
     private Post post;
     @OneToOne(mappedBy = "invoice")

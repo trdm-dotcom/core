@@ -126,7 +126,6 @@ public class RequestHandler extends KafkaRequestHandler {
                 case "post:/api/v1/core/invoice":
                     RequestingRepairRequest requestingRepairRequest = Message.getData(this.objectMapper, message, RequestingRepairRequest.class);
                     this.invoiceService.createNewInvoice(requestingRepairRequest, message.getTransactionId());
-
             }
             return true;
         } catch (IllegalArgumentException e) {

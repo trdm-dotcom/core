@@ -1,6 +1,7 @@
 package com.homer.core.repository;
 
 import com.homer.core.model.db.Booking;
+import com.homer.core.model.db.Post;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -19,7 +20,7 @@ import java.util.Optional;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long>, JpaSpecificationExecutor {
-    List<Booking> findByPostId(Long id);
+    List<Booking> findByPost(Post post);
 
     List<Booking> findByPostIdAndFromTimeBetween(Long id, LocalDateTime from, LocalDateTime to);
 

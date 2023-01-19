@@ -3,13 +3,16 @@ package com.homer.core.model.db;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "t_booking")
 public class Booking {
@@ -24,6 +27,7 @@ public class Booking {
     @JsonProperty
     private String reason;
     @ManyToOne()
+    @JoinColumn(name = "post_id", nullable = false)
     @JsonIgnore
     private Post post;
     private Boolean active;

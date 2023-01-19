@@ -10,6 +10,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -27,13 +29,13 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
             @Override
             public Predicate toPredicate(Root<Post> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
                 List<Predicate> predicates = new ArrayList<>();
-                if(!CollectionUtils.isEmpty(ids)){
+                if (!CollectionUtils.isEmpty(ids)) {
                     predicates.add(criteriaBuilder.and(root.get("id").in(ids)));
                 }
-                if (userId != null) {
+                if (StringUtils.hasText(userId)) {
                     predicates.add(criteriaBuilder.and(criteriaBuilder.equal(root.get("userId"), userId)));
                 }
-                if (name != null) {
+                if (StringUtils.hasText(name)) {
                     predicates.add(criteriaBuilder.and(criteriaBuilder.like(root.get("name"), "%" + name + "%")));
                 }
                 if (city != null) {
@@ -58,7 +60,7 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
                     predicates.add(criteriaBuilder.and(criteriaBuilder.lessThanOrEqualTo(root.get("size"), category)));
                 }
                 if (!CollectionUtils.isEmpty(features)) {
-                    predicates.add(criteriaBuilder.and(root.get("features").get("id").in("features")));
+                    predicates.add(criteriaBuilder.and(root.get("features").get("id").in(features)));
                 }
                 return criteriaBuilder.and(predicates.toArray(new Predicate[predicates.size()]));
             }
